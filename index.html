@@ -18,7 +18,7 @@
         .btn:hover { background: #2563eb; }
         .btn-file { background: #334155; margin-bottom: 10px; }
         .btn-file:hover { background: #475569; }
-        .my-id { font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 2px; color: #38bdf8; margin: 10px 0; }
+        .my-id { font-size: 18px; font-weight: bold; text-align: center; letter-spacing: 1px; color: #38bdf8; margin: 10px 0; word-break: break-all; }
         .status { font-size: 13px; text-align: center; color: #94a3b8; margin-top: 10px; }
         #downloadArea { display: none; margin-top: 15px; }
     </style>
@@ -28,13 +28,11 @@
 <div class="card">
     <h2>Передача файлов</h2>
     
-    <!-- Твой ID -->
     <div class="section">
-        <label>Твой код подключения:</label>
-        <div id="myId" class="my-id">Загрузка...</div>
+        <label>Твой ID подключения:</label>
+        <div id="myId" class="my-id">Получение ID...</div>
     </div>
 
-    <!-- Отправка -->
     <div class="section">
         <label>1. Выбери файл:</label>
         <label class="btn btn-file">
@@ -43,12 +41,11 @@
         </label>
         <div id="fileName" class="status" style="margin-bottom: 10px;">Файл не выбран</div>
 
-        <label>2. Введи код получателя:</label>
-        <input type="text" id="receiverId" placeholder="Например: 1234">
+        <label>2. Введи ID получателя:</label>
+        <input type="text" id="receiverId" placeholder="Вставь ID получателя">
         <button class="btn" onclick="sendFile()">Отправить файл</button>
     </div>
 
-    <!-- Статус и скачивание -->
     <div id="status" class="status">Ожидание...</div>
     <div id="downloadArea">
         <a id="downloadBtn" class="btn" style="background: #22c55e;" download>Скачать полученный файл</a>
@@ -56,15 +53,20 @@
 </div>
 
 <script>
-    // Генерируем короткий случайный ID из 4 цифр
-    const peerId = Math.floor(1000 + Math.random() * 9000).toString();
-    const peer = new Peer(peerId);
+    // Создаем экземпляр без фиксированного ID — сервер выдаст гарантированно уникальный
+    const peer = new Peer();
 
     peer.on('open', (id) => {
         document.getElementById('myId').innerText = id;
+        document.getElementById('status').innerText = 'Готов к подключению';
     });
 
-    // Обработка входящего подключения (Получатель)
+    peer.on('error', (err) => {
+        console.error(err);
+        document.getElementById('myId').innerText = 'Ошибка сети';
+        document.getElementById('status').innerText = 'Не удалось подключиться к серверу';
+    });
+
     peer.on('connection', (conn) => {
         document.getElementById('status').innerText = 'Подключение установлено...';
 
@@ -72,7 +74,6 @@
             if (data.file) {
                 document.getElementById('status').innerText = 'Файл получен!';
                 
-                // Создаём ссылку на скачивание из полученных бинарных данных
                 const blob = new Blob([data.file], { type: data.fileType });
                 const url = URL.createObjectURL(blob);
                 
@@ -92,13 +93,12 @@
         }
     }
 
-    // Отправка файла (Отправитель)
     function sendFile() {
         const targetId = document.getElementById('receiverId').value.trim();
         const fileInput = document.getElementById('fileInput');
 
         if (!targetId) {
-            alert('Введи код получателя!');
+            alert('Введи ID получателя!');
             return;
         }
         if (fileInput.files.length === 0) {
@@ -107,14 +107,13 @@
         }
 
         const file = fileInput.files[0];
-        document.getElementById('status').innerText = 'Подключение к ' + targetId + '...';
+        document.getElementById('status').innerText = 'Подключение к получателю...';
 
         const conn = peer.connect(targetId);
 
         conn.on('open', () => {
             document.getElementById('status').innerText = 'Отправка файла...';
             
-            // Читаем файл и отправляем
             conn.send({
                 file: file,
                 fileName: file.name,
@@ -125,7 +124,7 @@
         });
 
         conn.on('error', (err) => {
-            document.getElementById('status').innerText = 'Ошибка подключения!';
+            document.getElementById('status').innerText = 'Ошибка передачи!';
         });
     }
 </script>
