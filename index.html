@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Передача файлов P2P</title>
+    <title>Передача файлов P2P (v1.0.3)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: system-ui, sans-serif; }
         body { background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .card { background: #1e293b; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .card { background: #1e293b; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative; }
+        .version { position: absolute; top: 12px; right: 16px; font-size: 11px; color: #64748b; font-weight: bold; }
         h2 { margin-top: 0; text-align: center; font-size: 20px; }
         .section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #334155; }
         label { display: block; margin-bottom: 8px; font-size: 14px; color: #94a3b8; }
@@ -26,11 +27,12 @@
 <body>
 
 <div class="card">
+    <div class="version">v1.0.3</div>
     <h2>Передача файлов</h2>
     
     <div class="section">
         <label>Твой ID подключения:</label>
-        <div id="myId" class="my-id">Получение ID...</div>
+        <div id="myId" class="my-id">Подключение к серверу...</div>
     </div>
 
     <div class="section">
@@ -46,33 +48,46 @@
         <button class="btn" onclick="sendFile()">Отправить файл</button>
     </div>
 
-    <div id="status" class="status">Ожидание...</div>
+    <div id="status" class="status">Инициализация...</div>
     <div id="downloadArea">
         <a id="downloadBtn" class="btn" style="background: #22c55e;" download>Скачать полученный файл</a>
     </div>
 </div>
 
 <script>
-    // Настройка подключения через публичные STUN-серверы Google для обхода NAT/блокировок
+    // Используем альтернативный хост сигналов и открытые STUN-серверы
     const peer = new Peer({
+        host: 'peerjs-server.herokuapp.com',
+        secure: true,
+        port: 443,
         config: {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
             ]
         }
     });
 
     peer.on('open', (id) => {
         document.getElementById('myId').innerText = id;
-        document.getElementById('status').innerText = 'Готов к подключению';
+        document.getElementById('status').innerText = 'Готов к подключению (v1.0.3)';
     });
 
     peer.on('error', (err) => {
         console.error(err);
-        document.getElementById('myId').innerText = 'Ошибка соединения';
-        document.getElementById('status').innerText = 'Не удалось подключиться к сети. Проверь интернет или VPN.';
+        // Если альтернативный сервер недоступен, пробуем переключиться на дефолтный
+        if (peer.options.host !== '0.peerjs.com') {
+            document.getElementById('myId').innerText = 'Переподключение...';
+            document.getElementById('status').innerText = 'Смена сервера сигналов...';
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            document.getElementById('myId').innerText = 'Ошибка сети';
+            document.getElementById('status').innerText = 'Блокировка P2P сети браузером или провайдером';
+        }
     });
 
     peer.on('connection', (conn) => {
