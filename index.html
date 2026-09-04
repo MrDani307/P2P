@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Передача файлов P2P</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: system-ui, sans-serif; }
         body { background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
@@ -53,8 +53,16 @@
 </div>
 
 <script>
-    // Создаем экземпляр без фиксированного ID — сервер выдаст гарантированно уникальный
-    const peer = new Peer();
+    // Настройка подключения через публичные STUN-серверы Google для обхода NAT/блокировок
+    const peer = new Peer({
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        }
+    });
 
     peer.on('open', (id) => {
         document.getElementById('myId').innerText = id;
@@ -63,8 +71,8 @@
 
     peer.on('error', (err) => {
         console.error(err);
-        document.getElementById('myId').innerText = 'Ошибка сети';
-        document.getElementById('status').innerText = 'Не удалось подключиться к серверу';
+        document.getElementById('myId').innerText = 'Ошибка соединения';
+        document.getElementById('status').innerText = 'Не удалось подключиться к сети. Проверь интернет или VPN.';
     });
 
     peer.on('connection', (conn) => {
