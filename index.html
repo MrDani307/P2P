@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Передача файлов P2P</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: #1e293b; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h2 { margin-top: 0; text-align: center; font-size: 20px; }
+        .section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #334155; }
+        label { display: block; margin-bottom: 8px; font-size: 14px; color: #94a3b8; }
+        input[type="text"] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 16px; margin-bottom: 10px; text-align: center; }
+        input[type="file"] { display: none; }
+        .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 8px; background: #3b82f6; color: #fff; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; }
+        .btn:hover { background: #2563eb; }
+        .btn-file { background: #334155; margin-bottom: 10px; }
+        .btn-file:hover { background: #475569; }
+        .my-id { font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 2px; color: #38bdf8; margin: 10px 0; }
+        .status { font-size: 13px; text-align: center; color: #94a3b8; margin-top: 10px; }
+        #downloadArea { display: none; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Передача файлов</h2>
+    
+    <!-- Твой ID -->
+    <div class="section">
+        <label>Твой код подключения:</label>
+        <div id="myId" class="my-id">Загрузка...</div>
+    </div>
+
+    <!-- Отправка -->
+    <div class="section">
+        <label>1. Выбери файл:</label>
+        <label class="btn btn-file">
+            Обзор...
+            <input type="file" id="fileInput" onchange="updateFileName()">
+        </label>
+        <div id="fileName" class="status" style="margin-bottom: 10px;">Файл не выбран</div>
+
+        <label>2. Введи код получателя:</label>
+        <input type="text" id="receiverId" placeholder="Например: 1234">
+        <button class="btn" onclick="sendFile()">Отправить файл</button>
+    </div>
+
+    <!-- Статус и скачивание -->
+    <div id="status" class="status">Ожидание...</div>
+    <div id="downloadArea">
+        <a id="downloadBtn" class="btn" style="background: #22c55e;" download>Скачать полученный файл</a>
+    </div>
+</div>
+
+<script>
+    // Генерируем короткий случайный ID из 4 цифр
+    const peerId = Math.floor(1000 + Math.random() * 9000).toString();
+    const peer = new Peer(peerId);
+
+    peer.on('open', (id) => {
+        document.getElementById('myId').innerText = id;
+    });
+
+    // Обработка входящего подключения (Получатель)
+    peer.on('connection', (conn) => {
+        document.getElementById('status').innerText = 'Подключение установлено...';
+
+        conn.on('data', (data) => {
+            if (data.file) {
+                document.getElementById('status').innerText = 'Файл получен!';
+                
+                // Создаём ссылку на скачивание из полученных бинарных данных
+                const blob = new Blob([data.file], { type: data.fileType });
+                const url = URL.createObjectURL(blob);
+                
+                const downloadBtn = document.getElementById('downloadBtn');
+                downloadBtn.href = url;
+                downloadBtn.download = data.fileName;
+                
+                document.getElementById('downloadArea').style.display = 'block';
+            }
+        });
+    });
+
+    function updateFileName() {
+        const input = document.getElementById('fileInput');
+        if (input.files.length > 0) {
+            document.getElementById('fileName').innerText = input.files[0].name;
+        }
+    }
+
+    // Отправка файла (Отправитель)
+    function sendFile() {
+        const targetId = document.getElementById('receiverId').value.trim();
+        const fileInput = document.getElementById('fileInput');
+
+        if (!targetId) {
+            alert('Введи код получателя!');
+            return;
+        }
+        if (fileInput.files.length === 0) {
+            alert('Выбери файл для отправки!');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        document.getElementById('status').innerText = 'Подключение к ' + targetId + '...';
+
+        const conn = peer.connect(targetId);
+
+        conn.on('open', () => {
+            document.getElementById('status').innerText = 'Отправка файла...';
+            
+            // Читаем файл и отправляем
+            conn.send({
+                file: file,
+                fileName: file.name,
+                fileType: file.type
+            });
+
+            document.getElementById('status').innerText = 'Файл успешно отправлен!';
+        });
+
+        conn.on('error', (err) => {
+            document.getElementById('status').innerText = 'Ошибка подключения!';
+        });
+    }
+</script>
+
+</body>
+</html>
